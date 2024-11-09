@@ -18,82 +18,63 @@ import (
 	"github.com/favonia/cloudflare-ddns/internal/provider/protocol"
 )
 
-func TestLocalWithInterfaceName(t *testing.T) {
+func TestLocalWithSuffixName(t *testing.T) {
 	t.Parallel()
 
-	p := &protocol.LocalWithInterface{
-		ProviderName:  "very secret name",
-		InterfaceName: "lo",
+	p := &protocol.LocalWithSuffix{
+		ProviderName: "very secret name",
+		Suffix:       "beef",
 	}
 
 	require.Equal(t, "very secret name", p.Name())
 }
 
-func TestExtractInterfaceAddr(t *testing.T) {
+func TestExtractAddr(t *testing.T) {
 	t.Parallel()
 
 	var invalidIP netip.Addr
 
 	for name, tc := range map[string]struct {
-		input         net.Addr
-		ok            bool
-		output        netip.Addr
-		prepareMockPP func(*mocks.MockPP)
+		input  net.Addr
+		ok     bool
+		output netip.Addr
 	}{
 		"ipaddr/4": {
 			&net.IPAddr{IP: net.ParseIP("1.2.3.4"), Zone: ""},
 			true, netip.MustParseAddr("1.2.3.4"),
-			nil,
 		},
 		"ipaddr/6/zone-123": {
 			&net.IPAddr{IP: net.ParseIP("::1"), Zone: "123"},
 			true, netip.MustParseAddr("::1%123"),
-			nil,
 		},
 		"ipaddr/illformed": {
 			&net.IPAddr{IP: net.IP([]byte{0x01, 0x02}), Zone: ""},
 			false, invalidIP,
-			func(ppfmt *mocks.MockPP) {
-				ppfmt.EXPECT().Noticef(pp.EmojiImpossible, "Failed to parse address %q assigned to interface %s", "?0102", "iface")
-			},
 		},
 		"ipnet/4": {
 			&net.IPNet{IP: net.ParseIP("1.2.3.4"), Mask: net.CIDRMask(10, 22)},
 			true, netip.MustParseAddr("1.2.3.4"),
-			nil,
 		},
 		"ipnet/illformed": {
 			&net.IPNet{IP: net.IP([]byte{0x01, 0x02}), Mask: net.CIDRMask(10, 22)},
 			false, invalidIP,
-			func(ppfmt *mocks.MockPP) {
-				ppfmt.EXPECT().Noticef(pp.EmojiImpossible, "Failed to parse address %q assigned to interface %s", "?0102", "iface")
-			},
 		},
 		"dummy": {
 			&Dummy{},
 			false, invalidIP,
-			func(ppfmt *mocks.MockPP) {
-				ppfmt.EXPECT().Noticef(pp.EmojiImpossible, "Unexpected address data %q of type %T found in interface %s", "dummy/string", &Dummy{}, "iface")
-			},
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			mockCtrl := gomock.NewController(t)
-			mockPP := mocks.NewMockPP(mockCtrl)
-			if tc.prepareMockPP != nil {
-				tc.prepareMockPP(mockPP)
-			}
-
-			output, ok := protocol.ExtractInterfaceAddr(mockPP, "iface", tc.input)
+			output, ok := protocol.ExtractAddr(tc.input)
 			require.Equal(t, tc.ok, ok)
 			require.Equal(t, tc.output, output)
 		})
 	}
 }
 
-func TestSelectInterfaceIP(t *testing.T) {
+func TestSelectIPWithSuffix(t *testing.T) {
 	t.Parallel()
 
 	var invalidIP netip.Addr
@@ -167,11 +148,11 @@ func TestSelectInterfaceIP(t *testing.T) {
 	}
 }
 
-func TestLocalWithInterfaceGetIP(t *testing.T) {
+func TestLocalWithSuffixGetIP(t *testing.T) {
 	t.Parallel()
 
 	for name, tc := range map[string]struct {
-		interfaceName string
+		suffix        string
 		ipNet         ipnet.Type
 		ok            bool
 		expected      netip.Addr
@@ -208,9 +189,9 @@ func TestLocalWithInterfaceGetIP(t *testing.T) {
 				tc.prepareMockPP(mockPP)
 			}
 
-			provider := &protocol.LocalWithInterface{
-				ProviderName:  "",
-				InterfaceName: tc.interfaceName,
+			provider := &protocol.LocalWithSuffix{
+				ProviderName: "",
+				Suffix:       tc.suffix,
 			}
 			ip, method, ok := provider.GetIP(context.Background(), mockPP, tc.ipNet)
 			require.Equal(t, tc.ok, ok)

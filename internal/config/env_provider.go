@@ -126,6 +126,19 @@ func ReadProvider(ppfmt pp.PP, key, keyDeprecated string, field *provider.Provid
 			`You are using the experimental "local.iface" provider added in version 1.15.0`)
 		*field = provider.NewLocalWithInterface(parts[1])
 		return true
+	case len(parts) == 2 && parts[0] == "local.suffix":
+		if parts[1] == "" {
+			ppfmt.Noticef(
+				pp.EmojiUserError,
+				`%s=local.suffix: must be followed by an IPv6 address suffix (e.g. 'dead:beef')`,
+				key,
+			)
+			return false
+		}
+		ppfmt.Hintf(pp.HintExperimentalLocalWithSuffx,
+			`You are using the experimental "local.suffix" provider`)
+		*field = provider.NewLocalWithSuffix(parts[1])
+		return true
 	case len(parts) == 2 && parts[0] == "url":
 		p, ok := provider.NewCustomURL(ppfmt, parts[1])
 		if ok {

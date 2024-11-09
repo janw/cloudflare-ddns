@@ -15,6 +15,11 @@ import (
 	"github.com/favonia/cloudflare-ddns/internal/provider/protocol"
 )
 
+type Dummy struct{}
+
+func (*Dummy) Network() string { return "dummy/network" }
+func (*Dummy) String() string  { return "dummy/string" }
+
 func TestLocalAuteName(t *testing.T) {
 	t.Parallel()
 
